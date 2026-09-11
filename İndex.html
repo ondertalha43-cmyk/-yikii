@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sana Özel ❤️</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #050505;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Ekranın en alt ortasındaki şık uyarı yazısı */
+        .bottom-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            text-shadow: 0 0 10px rgba(255, 42, 109, 0.8), 0 0 20px rgba(255, 42, 109, 0.5);
+            pointer-events: none;
+            animation: pulseHint 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseHint {
+            0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(0.98); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="heartCanvas"></canvas>
+    
+    <!-- Alt kısımdaki yazı -->
+    <div class="bottom-hint">✨ Ekrana Tıkla ✨</div>
+
+    <script>
+        const canvas = document.getElementById('heartCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        let floatingTexts = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Kalp formülü (Parametrik Kalp Eğrisi)
+        function heartEquation(t) {
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            return { x, y };
+        }
+
+        class Particle {
+            constructor(scale) {
+                this.reset(scale);
+            }
+
+            reset(scale) {
+                const t = Math.random() * Math.PI * 2;
+                const pos = heartEquation(t);
+                
+                const factor = scale || (Math.min(width, height) / 35);
+                this.targetX = width / 2 + pos.x * factor;
+                this.targetY = height / 2 + pos.y * factor;
+
+                this.x = width / 2;
+                this.y = height / 2;
+                
+                this.speed = Math.random() * 0.03 + 0.01;
+                this.size = Math.random() * 2 + 1;
+                
+                const colors = ['#ff2a6d', '#ff5e97', '#ff0055', '#ff758c', '#ff7eb3'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.alpha = Math.random() * 0.8 + 0.2;
+            }
+
+            // Tıklama ile dışa doğru dağılma etkisi
+            explode(clickX, clickY) {
+                const angle = Math.atan2(this.y - clickY, this.x - clickX);
+                const force = Math.random() * 150 + 50;
+                this.targetX = this.x + Math.cos(angle) * force;
+                this.targetY = this.y + Math.sin(angle) * force;
+            }
+
+            update() {
+                this.x += (this.targetX - this.x) * this.speed;
+                this.y += (this.targetY - this.y) * this.speed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Tıklanan noktada yukarı doğru süzülen yazı sınıfı
+        class FloatingText {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.alpha = 1;
+                this.speedY = 1.2;
+                this.scale = 1;
+            }
+
+            update() {
+                this.y -= this.speedY;
+                this.alpha -= 0.015; // Yavaşça saydamlaşır
+                this.scale += 0.005;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.font = 'bold 22px "Segoe UI", sans-serif';
+                ctx.fillStyle = '#ff2a6d';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff5e97';
+                ctx.textAlign = 'center';
+                ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale);
+                ctx.fillText('Seni Seviyorum ❤️', 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // Parçacıkları oluştur
+        const particleCount = 600;
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        // Tıklama ve Dokunma Olayları
+        function handleClick(e) {
+            const clickX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clickY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            if (clickX && clickY) {
+                // Parçacıkları dağıt
+                particles.forEach(p => p.explode(clickX, clickY));
+                
+                // "Seni Seviyorum" yazısı ekle
+                floatingTexts.push(new FloatingText(clickX, clickY));
+            }
+        }
+
+        window.addEventListener('click', handleClick);
+        window.addEventListener('touchstart', handleClick);
+
+        let step = 0;
+        function animate() {
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            step += 0.05;
+            const pulseScale = (Math.min(width, height) / 35) + Math.sin(step) * 1.5;
+
+            // Parçacıkları güncelle ve çiz
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+                
+                // Hedefine ulaştıysa tekrar kalp formu ritmine dön
+                if (Math.abs(p.x - p.targetX) < 2 && Math.abs(p.y - p.targetY) < 2) {
+                    const t = Math.random() * Math.PI * 2;
+                    const pos = heartEquation(t);
+                    p.targetX = width / 2 + pos.x * pulseScale;
+                    p.targetY = height / 2 + pos.y * pulseScale;
+                }
+            });
+
+            // Uçuşan yazıları güncelle ve çiz
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.update();
+                ft.draw();
+                if (ft.alpha <= 0) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
+
